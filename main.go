@@ -194,20 +194,40 @@ func PostEmbed(embed *discordwebhook.Embed, ping bool) {
 	}
 }
 
+func PostNextOpeningWebhook(nextTime time.Time) {
+	timeWebhook, err := discordwebhook.CreateWebhook("", "Kyara", "")
+	notifColor, _ := strconv.ParseInt("2c0055ff", 16, 64)
+	embed := discordwebhook.Embed{
+		Title:       "Next opening",
+		Description: "Next opening at " + nextTime.Format("2006-01-02 15:04:05") + " <t:" + strconv.FormatInt(nextTime.Unix(), 10) + ":R>",
+		Color:       int(notifColor),
+	}
+	timeWebhook.Embeds = append(timeWebhook.Embeds, embed)
+	if err != nil {
+		log.Fatal("Error creating webhook: ", err)
+	}
+	err = discordwebhook.SendWebhook(WEBHOOK_URL, timeWebhook)
+	if err != nil {
+		log.Fatal("Error sending webhook: ", err)
+	}
+}
+
 func main() {
 	if AUTH_TOKEN == "" {
 		log.Fatal("Error loading .env file")
 	}
 
 	for {
-		sleepTime := 10 + rand.IntN(60-10+1)
-		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "🕛 Sleeping for", sleepTime, "minutes...")
+		sleepTime := 15 + rand.IntN(90-15+1)
+		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "🕛 Sleeping for", sleepTime, "minutes... Next opening will be at ", time.Now().Add(time.Minute*time.Duration(sleepTime)).Format("2006-01-02 15:04:05"))
+		PostNextOpeningWebhook(time.Now().Add(time.Minute * time.Duration(sleepTime)))
+
 		time.Sleep(time.Duration(sleepTime) * time.Minute)
 
 		me := FetchMe()
-		fmt.Println("Free packs : ", me.FreePacks)
+		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "Free packs : ", me.FreePacks)
 		if me.FreePacks >= 1 {
-			fmt.Println("Opening packs...")
+			fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "Opening packs...")
 			result := OpenPacks(me.FreePacks)
 			var cards []models.Card
 			for _, openPackResult := range result {
@@ -220,6 +240,7 @@ func main() {
 					PostEmbed(CreateCardEmbed(card), !alreadyPinged)
 					alreadyPinged = true
 				}
+				time.Sleep(time.Millisecond * 500)
 			}
 		}
 	}
