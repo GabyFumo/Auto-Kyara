@@ -3,11 +3,16 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
+	discordwebhook "github.com/dozerokz/discord-webhook-go"
 	_ "github.com/joho/godotenv/autoload"
 
 	"auto-kyara/models"
@@ -18,13 +23,6 @@ var baseUrl = "https://kyara.games/api"
 var AUTH_TOKEN = os.Getenv("AUTH_TOKEN")
 var WEBHOOK_URL = os.Getenv("WEBHOOK_URL")
 var DISCORD_ID = os.Getenv("DISCORD_ID")
-
-func main() {
-	if AUTH_TOKEN == "" {
-		log.Fatal("Error loading .env file")
-	}
-	FetchMe()
-}
 
 func FetchMe() models.User {
 	url := baseUrl + "/me"
@@ -68,6 +66,9 @@ func OpenPacks(amount int) []models.OpenOnePack {
 	body := map[string]int{
 		"maxChakra": 0,
 	}
+	if amount > 1 {
+		body["count"] = amount
+	}
 
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -108,5 +109,118 @@ func OpenPacks(amount int) []models.OpenOnePack {
 			log.Fatal("Error unmarshaling response: ", err)
 		}
 		return []models.OpenOnePack{result}
+	}
+}
+
+func CreateCardEmbed(card models.Card) *discordwebhook.Embed {
+	notifReason := "New card"
+	notifColor, _ := strconv.ParseInt("5a5662", 16, 64)
+	rariryName := "Common"
+	if card.Rarity == "U" {
+		notifColor, _ = strconv.ParseInt("3fbf7f", 16, 64)
+		rariryName = "Uncommon"
+	}
+	if card.Rarity == "R" {
+		notifColor, _ = strconv.ParseInt("4d9bff", 16, 64)
+		rariryName = "Rare"
+	}
+	if card.Rarity == "E" {
+		notifReason = "Epic drop"
+		notifColor, _ = strconv.ParseInt("b072ff", 16, 64)
+		rariryName = "Epic"
+	}
+	if card.Rarity == "L" {
+		notifReason = "Legendary drop"
+		notifColor, _ = strconv.ParseInt("f5c518", 16, 64)
+		rariryName = "Legendary"
+	}
+	if card.Rarity == "M" {
+		notifReason = "Mythical drop"
+		notifColor, _ = strconv.ParseInt("ff4d2e", 16, 64)
+		rariryName = "Mythical"
+	}
+
+	return &discordwebhook.Embed{
+		Title:       card.Name,
+		Description: notifReason,
+		Image:       discordwebhook.CreateImage(card.Image, "", 0, 0),
+		Color:       int(notifColor),
+		Fields: []discordwebhook.Field{
+			{
+				Name:   "Id",
+				Value:  strconv.Itoa(card.ID),
+				Inline: true,
+			},
+			{
+				Name:   "Rarity",
+				Value:  rariryName,
+				Inline: true,
+			},
+			{
+				Name:   "Series",
+				Value:  card.Series,
+				Inline: true,
+			},
+			{
+				Name:   "Rank",
+				Value:  rariryName,
+				Inline: true,
+			},
+			{
+				Name:   "Power / Aura",
+				Value:  strconv.Itoa(card.Pow) + " / " + strconv.Itoa(card.Aura),
+				Inline: true,
+			},
+		},
+	}
+}
+
+func PostEmbed(embed *discordwebhook.Embed, ping bool) {
+	webhook, err := discordwebhook.CreateWebhook("", "Kyara", "")
+	if err != nil {
+		log.Fatal("Error creating webhook: ", err)
+	}
+	if ping {
+		webhook.Content = "<@" + DISCORD_ID + ">"
+	}
+	webhook.Embeds = append(webhook.Embeds, *embed)
+	err = discordwebhook.SendWebhook(WEBHOOK_URL, webhook)
+	if err != nil {
+		log.Fatal("Error sending webhook: ", err)
+	}
+}
+
+func main() {
+	if AUTH_TOKEN == "" {
+		log.Fatal("Error loading .env file")
+	}
+
+	for {
+		sleepTime := 10 + rand.IntN(60-10+1)
+		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "🕛 Sleeping for", sleepTime, "minutes...")
+		time.Sleep(time.Duration(sleepTime) * time.Minute)
+
+		me := FetchMe()
+		fmt.Println("Free packs : ", me.FreePacks)
+		if me.FreePacks >= 1 {
+			fmt.Println("Opening packs...")
+			result := OpenPacks(me.FreePacks)
+			var cards []models.Card
+			for _, openPackResult := range result {
+				cards = append(cards, openPackResult.Cards...)
+			}
+
+			alreadyPinged := false
+			for _, card := range cards {
+				if card.Rarity == "M" || card.Rarity == "L" || card.Rarity == "E" || card.IsNew {
+					if !alreadyPinged {
+						PostEmbed(CreateCardEmbed(card), true)
+						alreadyPinged = true
+					} else {
+						PostEmbed(CreateCardEmbed(card), false)
+					}
+				}
+			}
+		}
 	}
 }
