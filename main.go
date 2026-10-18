@@ -196,16 +196,15 @@ func PostEmbed(embed *discordwebhook.Embed, ping bool) {
 
 func PostNextOpeningWebhook(nextTime time.Time) {
 	timeWebhook, err := discordwebhook.CreateWebhook("", "Kyara", "")
-	notifColor, _ := strconv.ParseInt("2c0055ff", 16, 64)
-	embed := discordwebhook.Embed{
-		Title:       "Next opening",
-		Description: "Next opening at " + nextTime.Format("2006-01-02 15:04:05") + " <t:" + strconv.FormatInt(nextTime.Unix(), 10) + ":R>",
-		Color:       int(notifColor),
-	}
-	timeWebhook.Embeds = append(timeWebhook.Embeds, embed)
 	if err != nil {
 		log.Fatal("Error creating webhook: ", err)
 	}
+	notifColor, _ := strconv.ParseInt("2c0055", 16, 64)
+	timeWebhook.Embeds = append(timeWebhook.Embeds, discordwebhook.Embed{
+		Title:       "Next opening",
+		Description: "Next opening at " + nextTime.Format("15h04") + " <t:" + strconv.FormatInt(nextTime.Unix(), 10) + ":R>",
+		Color:       int(notifColor),
+	})
 	err = discordwebhook.SendWebhook(WEBHOOK_URL, timeWebhook)
 	if err != nil {
 		log.Fatal("Error sending webhook: ", err)
@@ -219,7 +218,7 @@ func main() {
 
 	for {
 		sleepTime := 15 + rand.IntN(90-15+1)
-		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "🕛 Sleeping for", sleepTime, "minutes... Next opening will be at ", time.Now().Add(time.Minute*time.Duration(sleepTime)).Format("2006-01-02 15:04:05"))
+		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "🕛 Sleeping for", sleepTime, "minutes... Next opening will be at", time.Now().Add(time.Minute*time.Duration(sleepTime)).Format("2006-01-02 15:04:05"))
 		PostNextOpeningWebhook(time.Now().Add(time.Minute * time.Duration(sleepTime)))
 
 		time.Sleep(time.Duration(sleepTime) * time.Minute)
