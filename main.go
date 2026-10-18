@@ -181,7 +181,11 @@ func PostEmbed(embed *discordwebhook.Embed, ping bool) {
 		log.Fatal("Error creating webhook: ", err)
 	}
 	if ping {
-		webhook.Content = "<@" + DISCORD_ID + ">"
+		pingWebhook, err := discordwebhook.CreateWebhook("<@"+DISCORD_ID+">", "Kyara", "")
+		if err != nil {
+			log.Fatal("Error creating pingWebhook: ", err)
+		}
+		discordwebhook.SendWebhook(WEBHOOK_URL, pingWebhook)
 	}
 	webhook.Embeds = append(webhook.Embeds, *embed)
 	err = discordwebhook.SendWebhook(WEBHOOK_URL, webhook)
@@ -213,12 +217,8 @@ func main() {
 			alreadyPinged := false
 			for _, card := range cards {
 				if card.Rarity == "M" || card.Rarity == "L" || card.Rarity == "E" || card.IsNew {
-					if !alreadyPinged {
-						PostEmbed(CreateCardEmbed(card), true)
-						alreadyPinged = true
-					} else {
-						PostEmbed(CreateCardEmbed(card), false)
-					}
+					PostEmbed(CreateCardEmbed(card), !alreadyPinged)
+					alreadyPinged = true
 				}
 			}
 		}
