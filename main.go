@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -23,8 +23,7 @@ func main() {
 	if AUTH_TOKEN == "" {
 		log.Fatal("Error loading .env file")
 	}
-	user := FetchMe()
-	fmt.Println(user)
+	FetchMe()
 }
 
 func FetchMe() models.User {
@@ -56,4 +55,58 @@ func FetchMe() models.User {
 	}
 
 	return user
+}
+
+func OpenPacks(amount int) []models.OpenOnePack {
+	var url string
+	if amount > 1 {
+		url = baseUrl + "/packs/waifu/open-many"
+	} else {
+		url = baseUrl + "/packs/waifu/open"
+	}
+
+	body := map[string]int{
+		"maxChakra": 0,
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		log.Fatal("Error marshaling body: ", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(b))
+	if err != nil {
+		log.Fatal("Error creating request: ", err)
+	}
+
+	req.Header.Add("Authorization", "Bearer "+AUTH_TOKEN)
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Error sending request: ", err)
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal("Error reading response: ", err)
+	}
+
+	if amount > 1 {
+		var result models.OpenManyPacks
+		err = json.Unmarshal(bodyBytes, &result)
+		if err != nil {
+			log.Fatal("Error unmarshaling response: ", err)
+		}
+		return result.Results
+	} else {
+		var result models.OpenOnePack
+		err = json.Unmarshal(bodyBytes, &result)
+		if err != nil {
+			log.Fatal("Error unmarshaling response: ", err)
+		}
+		return []models.OpenOnePack{result}
+	}
 }
