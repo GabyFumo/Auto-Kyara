@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auto-kyara
+    container_name: ${CONTAINER_NAME:-auto-kyara}
     restart: unless-stopped
     env_file:
       - .env

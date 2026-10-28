@@ -58,9 +58,9 @@ func FetchMe() models.User {
 func OpenPacks(amount int) []models.OpenOnePack {
 	var url string
 	if amount > 1 {
-		url = baseUrl + "/packs/waifu/open-many"
+		url = baseUrl + "/packs/all/open-many"
 	} else {
-		url = baseUrl + "/packs/waifu/open"
+		url = baseUrl + "/packs/all/open"
 	}
 
 	body := map[string]int{
@@ -140,6 +140,11 @@ func CreateCardEmbed(card models.Card) *discordwebhook.Embed {
 		rariryName = "Mythical"
 	}
 
+	status := "Already owned"
+	if card.IsNew {
+		status = "New card"
+	}
+
 	return &discordwebhook.Embed{
 		Title:       card.Name,
 		Description: notifReason,
@@ -169,6 +174,11 @@ func CreateCardEmbed(card models.Card) *discordwebhook.Embed {
 			{
 				Name:   "Power / Aura",
 				Value:  strconv.Itoa(card.Pow) + " / " + strconv.Itoa(card.Aura),
+				Inline: true,
+			},
+			{
+				Name:   "Status",
+				Value:  status,
 				Inline: true,
 			},
 		},
@@ -212,6 +222,9 @@ func PostNextOpeningWebhook(nextTime time.Time) {
 }
 
 func main() {
+	meTest := FetchMe()
+	fmt.Println("Name : ", meTest.Discord.Username)
+
 	if AUTH_TOKEN == "" {
 		log.Fatal("Error loading .env file")
 	}
