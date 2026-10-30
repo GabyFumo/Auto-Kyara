@@ -185,13 +185,13 @@ func CreateCardEmbed(card models.Card) *discordwebhook.Embed {
 	}
 }
 
-func PostEmbed(embed *discordwebhook.Embed, ping bool) {
+func PostEmbed(embed *discordwebhook.Embed, ping bool, message string) {
 	webhook, err := discordwebhook.CreateWebhook("", "Kyara", "")
 	if err != nil {
 		log.Fatal("Error creating webhook: ", err)
 	}
 	if ping {
-		pingWebhook, err := discordwebhook.CreateWebhook("<@"+DISCORD_ID+">", "Kyara", "")
+		pingWebhook, err := discordwebhook.CreateWebhook("<@"+DISCORD_ID+"> "+message, "Kyara", "")
 		if err != nil {
 			log.Fatal("Error creating pingWebhook: ", err)
 		}
@@ -222,12 +222,12 @@ func PostNextOpeningWebhook(nextTime time.Time) {
 }
 
 func main() {
-	meTest := FetchMe()
-	fmt.Println("Name : ", meTest.Discord.Username)
-
 	if AUTH_TOKEN == "" {
 		log.Fatal("Error loading .env file")
 	}
+
+	meTest := FetchMe()
+	fmt.Println("Name : ", meTest.Discord.Username)
 
 	for {
 		sleepTime := 15 + rand.IntN(90-15+1)
@@ -239,20 +239,29 @@ func main() {
 		me := FetchMe()
 		fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "Free packs : ", me.FreePacks)
 		if me.FreePacks >= 1 {
+			var message string
 			fmt.Println(time.Now().Format("2006-01-02 15:04:05"), "Opening packs...")
 			result := OpenPacks(me.FreePacks)
 			var cards []models.Card
 			for _, openPackResult := range result {
+				if openPackResult.GodPack {
+					message = "✨ **Pack Divin** ✨"
+				}
 				cards = append(cards, openPackResult.Cards...)
 			}
 
 			alreadyPinged := false
 			for _, card := range cards {
+				post := false
 				if card.Rarity == "M" || card.Rarity == "L" || card.Rarity == "E" || card.IsNew {
-					PostEmbed(CreateCardEmbed(card), !alreadyPinged)
+					post = true
+					PostEmbed(CreateCardEmbed(card), !alreadyPinged, message)
 					alreadyPinged = true
 				}
-				time.Sleep(time.Millisecond * 500)
+				if post {
+					// Sleep so we don't get rate limited by Discord.
+					time.Sleep(time.Millisecond * 500)
+				}
 			}
 		}
 	}
